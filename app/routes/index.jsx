@@ -1,62 +1,74 @@
 import React, { useState } from "react";
 import { sql } from "../api/sql";
+import { useNavigate } from "react-router";
 
 export default function App() {
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [chatCode, setChatCode] = useState("");
   const [message, setMessage] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // ← nový stav
+  const navigate = useNavigate();
 
-  // Registrace uživatele
   const handleRegister = async () => {
     if (!name || !surname) {
       setMessage("Vyplň jméno i příjmení!");
       return;
     }
 
-    const query = `
+    await sql(`
       INSERT INTO users_SMMMSJ (name, surname)
       VALUES ('${name}', '${surname}')
-    `;
-    await sql(query);
+    `);
     setMessage("✅ Registrace úspěšná!");
   };
 
-  // Login uživatele
   const handleLogin = async () => {
     if (!name || !surname) {
       setMessage("Vyplň jméno i příjmení!");
       return;
     }
 
-    const query = `
+    const result = await sql(`
       SELECT * FROM users_SMMMSJ
       WHERE name='${name}' AND surname='${surname}'
       LIMIT 1
-    `;
-    const result = await sql(query);
+    `);
+
     if (result && result.length > 0) {
       setMessage("✅ Přihlášení úspěšné!");
+      setIsLoggedIn(true); // ← přihlášení povoleno
     } else {
       setMessage("❌ Uživatel nenalezen.");
+      setIsLoggedIn(false); // ← přihlášení zamítnuto
     }
   };
 
-  // Připojení do chatu podle kódu
   const handleEnterChat = async () => {
-    if (!chatCode) {
-      setMessage("Zadej 4místný kód!");
+    if (!isLoggedIn) {
+      setMessage("❌ Musíš se nejprve přihlásit!");
       return;
     }
 
-    const query = `
+    if (!chatCode) {
+      setMessage("Zadej 4-místný kód!");
+      return;
+    }
+
+    const result = await sql(`
       SELECT * FROM chats_SMMMSJ
       WHERE chat_code='${chatCode}'
       LIMIT 1
-    `;
-    const result = await sql(query);
+    `);
+
     if (result && result.length > 0) {
-      setMessage(`✅ Připojen do chatu s kódem ${chatCode}`);
+      // mapování kódů na URL chatů
+      const chatMap = { 1234: "1", 5678: "2", 9999: "secret" };
+      const chatId = chatMap[chatCode];
+
+      if (chatId) {
+        navigate(`/chat/${chatId}?code=${chatCode}`);
+      }
     } else {
       setMessage("❌ Chat s tímto kódem neexistuje.");
     }
@@ -71,13 +83,15 @@ export default function App() {
         placeholder="Jméno"
         value={name}
         onChange={(e) => setName(e.target.value)}
-      /><br />
+      />
+      <br />
       <input
         type="text"
         placeholder="Příjmení"
         value={surname}
         onChange={(e) => setSurname(e.target.value)}
-      /><br />
+      />
+      <br />
 
       <button onClick={handleRegister}>Registrovat</button>
       <button onClick={handleLogin}>Login</button>
