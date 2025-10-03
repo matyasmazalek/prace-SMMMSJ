@@ -1,62 +1,61 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { sql } from "../api/sql";
 
 export default function Chat() {
-  const { code } = useParams();
+  const { id } = useParams(); // chatCode z URL
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const user = JSON.parse(localStorage.getItem("chatUser"));
   const bottomRef = useRef(null);
 
-  // ⬇️ načti zprávy z databáze
+  // Načíst zprávy z DB
   const loadMessages = async () => {
-    const query = `
+    if (!id) return;
+    const result = await sql(`
       SELECT * FROM chats_SMMMSJ
-      WHERE chat_code='${code}'
+      WHERE chat_code='${id}'
       ORDER BY time ASC, id ASC
-    `;
-    const result = await sql(query);
-    if (result) setMessages(result);
+    `);
+
+    if (Array.isArray(result)) setMessages(result);
   };
 
-  // ⬇️ pošli zprávu do databáze
+  // Poslat zprávu
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user) return;
+
     const fullMsg = `${user.name} ${user.surname}: ${newMessage}`;
-    const query = `
+    await sql(`
       INSERT INTO chats_SMMMSJ (chat_code, messages, time)
-      VALUES ('${code}', '${fullMsg}', NOW())
-    `;
-    await sql(query);
+      VALUES ('${id}', '${fullMsg}', NOW())
+    `);
+
     setNewMessage("");
-    loadMessages(); // refresh po odeslání
+    loadMessages();
   };
 
-  // Auto-scroll na konec
+  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Refresh zpráv každé 3s
   useEffect(() => {
     loadMessages();
     const interval = setInterval(loadMessages, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [id]);
 
   return (
     <div style={{ padding: "2rem", maxWidth: 600, margin: "0 auto" }}>
-      <h1>💬 Chat {code}</h1>
+      <h1>💬 Chat {id}</h1>
       <button
         onClick={() => navigate("/")}
-        style={{ marginBottom: "1rem" }}
-      >
+        style={{ marginBottom: "1rem" }}>
         🔑 Přejít do jiného chatu
       </button>
 
-      {/* Zprávy */}
       <div
         style={{
           border: "1px solid #ccc",
@@ -67,8 +66,7 @@ export default function Chat() {
           overflowY: "auto",
           marginBottom: "1rem",
           background: "#fafafa",
-        }}
-      >
+        }}>
         {messages.length === 0 ? (
           <p style={{ color: "#888" }}>Žádné zprávy...</p>
         ) : (
@@ -87,8 +85,7 @@ export default function Chat() {
                 alignSelf: "flex-start",
                 maxWidth: "70%",
                 wordWrap: "break-word",
-              }}
-            >
+              }}>
               <span>{m.messages}</span>
             </div>
           ))
@@ -96,7 +93,6 @@ export default function Chat() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div style={{ display: "flex" }}>
         <input
           type="text"
@@ -122,12 +118,10 @@ export default function Chat() {
             background: "#007bff",
             color: "#fff",
             cursor: "pointer",
-          }}
-        >
+          }}>
           Odeslat
         </button>
       </div>
     </div>
   );
 }
-
