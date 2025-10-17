@@ -7,6 +7,9 @@ export default function Chat() {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  
+
+
   const user = JSON.parse(localStorage.getItem("chatUser"));
   const bottomRef = useRef(null);
 
